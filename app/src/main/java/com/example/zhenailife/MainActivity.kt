@@ -2,6 +2,7 @@ package com.example.zhenailife
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
@@ -39,9 +40,17 @@ class MainActivity : ComponentActivity() {
                             showToast("Accessibility Service is not enabled")
                         }
                     },
-                    onToggleFilter = { isChecked ->
-                        filterEnabled = isChecked
-                        toggleFilter(isChecked)
+                    onToggleFilter = { isChecked, updateSwitch ->
+                        if (isAccessibilityEnabled(this, MyAccessibilityService::class.java)) {
+                            filterEnabled = isChecked
+                            toggleFilter(isChecked)
+                            updateSwitch(isChecked) // 同步更新 Switch 状态
+                        } else {
+                            // 没有权限时，提示用户授予权限并恢复 Switch 状态
+                            showToast("Please grant accessibility permission")
+                            updateSwitch(false) // 恢复 Switch 状态为 "off"
+                            requestAccessibilityPermission() // 跳转到设置页面授予权限
+                        }
                     }
                 )
             }
@@ -66,7 +75,7 @@ class MainActivity : ComponentActivity() {
     private fun isAccessibilityEnabled(context: Context, service: Class<out android.accessibilityservice.AccessibilityService>): Boolean {
         var accessibilityEnabled = 0
         val ACCESSIBILITY_SERVICE_NAME = service.canonicalName
-            // "com.example.zhenailife/com.example.zhenailife.MyAccessibilityService"
+        // "com.example.zhenailife/com.example.zhenailife.MyAccessibilityService"
 
         try {
             // 检查无障碍功能是否启用
@@ -97,7 +106,7 @@ class MainActivity : ComponentActivity() {
             if (settingValue != null) {
                 mStringColonSplitter.setString(settingValue)
                 while (mStringColonSplitter.hasNext()) {
-                    val accessibilityService = mStringColonSplitter.next()
+                    val accessibilityService = mStringColonSplitter.next().split("/").toTypedArray()[1]
                     Log.d("AccessibilityCheck", "Service: $accessibilityService")
 
                     // 比较服务名是否匹配
@@ -116,12 +125,11 @@ class MainActivity : ComponentActivity() {
         return false
     }
 }
-
 @Composable
 fun MainScreen(
     onRequestAccessibilityPermission: () -> Unit,
     onCheckServiceStatus: () -> Unit,
-    onToggleFilter: (Boolean) -> Unit
+    onToggleFilter: (Boolean, (Boolean) -> Unit) -> Unit
 ) {
     var filterChecked by remember { mutableStateOf(false) }
 
@@ -147,9 +155,13 @@ fun MainScreen(
         // 切换滤镜的开关
         Switch(
             checked = filterChecked,
-            onCheckedChange = {
-                filterChecked = it
-                onToggleFilter(it)
+            onCheckedChange = { isChecked ->
+                // 立即更新 Switch 状态
+                filterChecked = isChecked
+                // 调用 onToggleFilter，并将恢复 Switch 状态的逻辑传递给它
+                onToggleFilter(isChecked) { updatedChecked ->
+                    filterChecked = updatedChecked
+                }
             }
         )
         Text(text = if (filterChecked) "Filter Enabled" else "Filter Disabled")
@@ -160,6 +172,6 @@ fun MainScreen(
 @Composable
 fun DefaultPreview() {
     ZHENAILifeTheme {
-        MainScreen({}, {}, {})
+        MainScreen({}, {}, { _, _ -> })
     }
 }
