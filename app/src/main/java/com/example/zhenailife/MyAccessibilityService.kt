@@ -1,62 +1,62 @@
 package com.example.zhenailife
 
 import android.accessibilityservice.AccessibilityService
-import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.os.Build
-import android.view.LayoutInflater
 import android.view.WindowManager
-import android.view.accessibility.AccessibilityEvent
 import android.widget.FrameLayout
 
 class MyAccessibilityService : AccessibilityService() {
 
-    private lateinit var filterView: FrameLayout
-    private lateinit var windowManager: WindowManager
+    private var filterView: FrameLayout? = null
+    private var filterEnabled = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-
-        // 初始化 WindowManager
-        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-
-        // 创建过滤器视图
-        filterView = FrameLayout(this).apply {
-            setBackgroundColor(Color.argb(150, 125, 102, 8))  // 土黄色滤镜，半透明
-        }
-
-        // 设置布局参数
-        val layoutParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
-            else
-                WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-            PixelFormat.TRANSLUCENT
-        )
-
-        // 将视图添加到 WindowManager
-        windowManager.addView(filterView, layoutParams)
+        // 初始化滤镜或其他逻辑
     }
 
-    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // 处理你感兴趣的事件
+    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {
+        // 处理无障碍事件（不需要修改）
     }
 
     override fun onInterrupt() {
-        // 当服务被中断时处理
+        // 当服务中断时调用
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        // 移除滤镜视图
-        if (::filterView.isInitialized) {
-            windowManager.removeView(filterView)
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // 处理从 MainActivity 传递过来的意图
+        filterEnabled = intent?.getBooleanExtra("FILTER_ENABLED", false) ?: false
+        if (filterEnabled) {
+            enableFilter()
+        } else {
+            disableFilter()
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
+
+    private fun enableFilter() {
+        if (filterView == null) {
+            filterView = FrameLayout(this)
+            filterView!!.setBackgroundColor(Color.argb(100, 125, 102, 8))  // 土黄色滤镜
+            val layoutParams = WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                PixelFormat.TRANSLUCENT
+            )
+            val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+            wm.addView(filterView, layoutParams)
+        }
+    }
+
+    private fun disableFilter() {
+        if (filterView != null) {
+            val wm = getSystemService(WINDOW_SERVICE) as WindowManager
+            wm.removeView(filterView)
+            filterView = null
         }
     }
 }

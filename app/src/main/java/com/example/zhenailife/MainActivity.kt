@@ -1,26 +1,27 @@
 package com.example.zhenailife
 
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import android.util.Log
 import com.example.zhenailife.ui.theme.ZHENAILifeTheme
 
 class MainActivity : ComponentActivity() {
+
+    private var filterEnabled = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -31,14 +32,16 @@ class MainActivity : ComponentActivity() {
                         requestAccessibilityPermission()
                     },
                     onCheckServiceStatus = {
-                        val isEnabled = isAccessibilityEnabled(this)
+                        val isEnabled = isAccessibilityEnabled(this, MyAccessibilityService::class.java)
                         if (isEnabled) {
-                            // 已启用
                             showToast("Accessibility Service is enabled")
                         } else {
-                            // 未启用
                             showToast("Accessibility Service is not enabled")
                         }
+                    },
+                    onToggleFilter = { isChecked ->
+                        filterEnabled = isChecked
+                        toggleFilter(isChecked)
                     }
                 )
             }
@@ -46,7 +49,6 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun requestAccessibilityPermission() {
-        // 引导用户前往系统的无障碍设置界面
         val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
         startActivity(intent)
     }
@@ -55,11 +57,16 @@ class MainActivity : ComponentActivity() {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
     }
 
+    private fun toggleFilter(enable: Boolean) {
+        val intent = Intent(this, MyAccessibilityService::class.java)
+        intent.putExtra("FILTER_ENABLED", enable)
+        startService(intent)
+    }
 
-
-    private fun isAccessibilityEnabled(context: Context): Boolean {
+    private fun isAccessibilityEnabled(context: Context, service: Class<out android.accessibilityservice.AccessibilityService>): Boolean {
         var accessibilityEnabled = 0
-        val ACCESSIBILITY_SERVICE_NAME = "com.example.zhenailife/com.example.zhenailife.MyAccessibilityService"
+        val ACCESSIBILITY_SERVICE_NAME = service.canonicalName
+            // "com.example.zhenailife/com.example.zhenailife.MyAccessibilityService"
 
         try {
             // 检查无障碍功能是否启用
@@ -108,15 +115,16 @@ class MainActivity : ComponentActivity() {
 
         return false
     }
-
 }
 
 @Composable
 fun MainScreen(
     onRequestAccessibilityPermission: () -> Unit,
-    onCheckServiceStatus: () -> Unit
+    onCheckServiceStatus: () -> Unit,
+    onToggleFilter: (Boolean) -> Unit
 ) {
-    // 主界面内容
+    var filterChecked by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -134,6 +142,17 @@ fun MainScreen(
         Button(onClick = { onRequestAccessibilityPermission() }) {
             Text(text = "Enable Accessibility Service")
         }
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // 切换滤镜的开关
+        Switch(
+            checked = filterChecked,
+            onCheckedChange = {
+                filterChecked = it
+                onToggleFilter(it)
+            }
+        )
+        Text(text = if (filterChecked) "Filter Enabled" else "Filter Disabled")
     }
 }
 
@@ -141,6 +160,6 @@ fun MainScreen(
 @Composable
 fun DefaultPreview() {
     ZHENAILifeTheme {
-        MainScreen({}, {})
+        MainScreen({}, {}, {})
     }
 }
