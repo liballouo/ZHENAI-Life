@@ -42,9 +42,10 @@ class MyAccessibilityService : AccessibilityService() {
             filterView!!.setBackgroundColor(Color.argb(100, 125, 102, 8))  // 土黄色滤镜
             val layoutParams = WindowManager.LayoutParams(
                 WindowManager.LayoutParams.MATCH_PARENT,
-                WindowManager.LayoutParams.MATCH_PARENT,
+                5000, // 原本是 WindowManager.LayoutParams.MATCH_PARENT，這邊直接寫死超長覆蓋
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                        WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, // 這兩個 Flag 很重要
                 PixelFormat.TRANSLUCENT
             )
             val wm = getSystemService(WINDOW_SERVICE) as WindowManager
