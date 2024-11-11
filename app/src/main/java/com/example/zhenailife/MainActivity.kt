@@ -25,6 +25,7 @@ import androidx.core.app.NotificationManagerCompat
 import android.app.PendingIntent
 import androidx.core.content.ContextCompat
 import android.Manifest
+import android.accessibilityservice.AccessibilityService
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -32,6 +33,9 @@ import androidx.core.app.ActivityCompat
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.example.zhenailife.ui.theme.ZHENAILifeTheme
+import androidx.work.Data
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 
 class MainActivity : ComponentActivity() {
 
@@ -55,6 +59,11 @@ class MainActivity : ComponentActivity() {
 
         // 註冊廣播接收器
         registerReceiver(notificationReceiver, IntentFilter("com.example.zhenailife.ACTION_NOTIFICATION"),
+            RECEIVER_NOT_EXPORTED
+        )
+
+        // 註冊本地廣播接收器
+        registerReceiver(localReceiver, IntentFilter("com.example.zhenailife.ACTION_SNOOZE_LOCAL"),
             RECEIVER_NOT_EXPORTED
         )
 
@@ -84,7 +93,14 @@ class MainActivity : ComponentActivity() {
                         }
                     },
                     onStartCountdown = { timeInMillis ->
-                        startCountdown(timeInMillis)
+                        if (isAccessibilityEnabled(this, MyAccessibilityService::class.java)) {
+                            startCountdown(timeInMillis)
+                            showToast("Countdown started")
+                        } else {
+                            showToast("Please grant accessibility permission")
+                            requestAccessibilityPermission() // 跳转到设置页面授予权限
+                        }
+
                     },
                     showToast = { message -> showToast(message) }
                 )
@@ -102,19 +118,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun toggleFilter(enable: Boolean) {
-        val workManager = androidx.work.WorkManager.getInstance(this)
-        val data = androidx.work.Data.Builder()
+        val workManager = WorkManager.getInstance(this)
+        val data = Data.Builder()
             .putBoolean("FILTER_ENABLED", enable)
             .build()
 
-        val filterWorkRequest = androidx.work.OneTimeWorkRequestBuilder<FilterWorker>()
+        val filterWorkRequest = OneTimeWorkRequestBuilder<FilterWorker>()
             .setInputData(data)
             .build()
 
         workManager.enqueue(filterWorkRequest)
     }
 
-    private fun isAccessibilityEnabled(context: Context, service: Class<out android.accessibilityservice.AccessibilityService>): Boolean {
+    private fun isAccessibilityEnabled(context: Context, service: Class<out AccessibilityService>): Boolean {
         var accessibilityEnabled = 0
         val accessibility_service_name = service.canonicalName
         // "com.example.zhenailife/com.example.zhenailife.MyAccessibilityService"
@@ -174,7 +190,7 @@ class MainActivity : ComponentActivity() {
             override fun onTick(millisUntilFinished: Long) {
                 if (millisUntilFinished <= 5 * 60 * 1000 && !notificationShown) {
                     showNotification("Time is running out!", "5 minutes left", true)
-                    notificationShown = true // 設置為 true，確保通知只顯示一次
+                    notificationShown = true // 設置為 true，保通知只顯示一次
                     toggleFilter(true)
                     mediaPlayer.start()
                 }
@@ -237,9 +253,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private val localReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                "com.example.zhenailife.ACTION_SNOOZE_LOCAL" -> {
+                    startCountdown(5 * 60 * 1000)
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(notificationReceiver)
+        unregisterReceiver(localReceiver)
         mediaPlayer.release()
     }
 
@@ -265,7 +292,7 @@ class MainActivity : ComponentActivity() {
         }
         // Register the channel with the system
         val notificationManager: NotificationManager =
-            getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.createNotificationChannel(channel)
     }
 }
