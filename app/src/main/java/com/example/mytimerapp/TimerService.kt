@@ -45,25 +45,21 @@ class TimerService : Service() {
             "剩餘時間: ${formatTime(totalSeconds)}"
         )
         
-        try {
-            startForeground(NOTIFICATION_ID, notification)
-            
-            countDownTimer = object : CountDownTimer(totalSeconds * 1000L, 1000) {
-                override fun onTick(millisUntilFinished: Long) {
-                    val seconds = millisUntilFinished / 1000
-                    updateNotification(seconds)
-                    timerCallback?.invoke(seconds)
-                }
+        startForeground(NOTIFICATION_ID, notification)
+        
+        countDownTimer = object : CountDownTimer(totalSeconds * 1000L, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val seconds = millisUntilFinished / 1000
+                updateNotification(seconds)
+                timerCallback?.invoke(seconds)
+            }
 
-                override fun onFinish() {
-                    showCompletionNotification()
-                    timerCallback?.invoke(0)
-                    stopSelf()
-                }
-            }.start()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+            override fun onFinish() {
+                showCompletionNotification()
+                timerCallback?.invoke(0)
+                stopSelf()
+            }
+        }.start()
     }
 
     fun stopTimer() {
@@ -77,13 +73,14 @@ class TimerService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "计时器通知",
-                NotificationManager.IMPORTANCE_HIGH
+                "計時器通知",
+                // NotificationManager.IMPORTANCE_HIGH
+                NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "显示计时器的进度"
-                setShowBadge(true)
+                description = "顯示計時器進度"
                 enableLights(true)
                 enableVibration(true)
+                setSound(null, null)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -142,8 +139,9 @@ class TimerService : Service() {
             .setContentText("時間到!")
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setVibrate(longArrayOf(0, 500, 250, 500))
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            // .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // .setVibrate(longArrayOf(0, 500, 250, 500))
             .build()
 
         notificationManager.notify(NOTIFICATION_ID, notification)
@@ -166,7 +164,7 @@ class TimerService : Service() {
         val minutes = (totalSeconds % 3600) / 60
         val seconds = totalSeconds % 60
         return when {
-//            hours > 0 -> String.format("%d时%02d分%02d秒", hours, minutes, seconds)
+//            hours > 0 -> String.format("%d時%02d分%02d秒", hours, minutes, seconds)
             minutes > 0 -> String.format("%d分%02d秒", minutes, seconds)
             else -> String.format("%d秒", seconds)
         }

@@ -1,10 +1,7 @@
 package com.example.mytimerapp
 
 import android.app.Application
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
+import android.content.*
 import android.os.Build
 import android.os.IBinder
 import androidx.lifecycle.AndroidViewModel
@@ -22,7 +19,7 @@ class TimerViewModel(
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             timerService = (service as TimerService.LocalBinder).getService().apply {
-                // 设置回调来接收计时器更新
+                // 設置回調來接收計時器更新
                 setTimerCallback { remainingSeconds ->
                     _timerState.update { 
                         it.copy(remainingSeconds = remainingSeconds.toInt())
@@ -56,7 +53,7 @@ class TimerViewModel(
     }
 
     fun startTimer() {
-        // 启动服务
+        // 啟動服務
         val serviceIntent = Intent(application, TimerService::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             application.startForegroundService(serviceIntent)
@@ -71,7 +68,7 @@ class TimerViewModel(
     fun stopTimer() {
         _timerState.update { it.copy(isRunning = false) }
         timerService?.stopTimer()
-        // 停止服务
+        // 停止服務
         val serviceIntent = Intent(application, TimerService::class.java)
         application.stopService(serviceIntent)
     }

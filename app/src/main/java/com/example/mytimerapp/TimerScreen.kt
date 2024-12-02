@@ -3,17 +3,9 @@ package com.example.mytimerapp
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.layout.Row
 
 @Composable
 fun TimerScreen(
@@ -21,113 +13,79 @@ fun TimerScreen(
     viewModel: TimerViewModel = viewModel()
 ) {
     val timerState by viewModel.timerState.collectAsState()
-    
+
     Column(
-        modifier = modifier.fillMaxSize(),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // 显示剩余时间
+        // 顯示剩餘時間
         Text(
             text = formatTime(timerState.remainingSeconds),
             style = MaterialTheme.typography.displayLarge,
             modifier = Modifier.padding(bottom = 32.dp)
         )
-        
-        // 时间选择器
+
+        // 時間選擇器，使用 SlotMachinePicker 替代原先的 WheelNumberPicker
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
-            // 小时选择器
-//            NumberPicker(
-//                value = timerState.totalSeconds / 3600,
-//                onValueChange = { hours ->
-//                    viewModel.setTime(hours, timerState.totalSeconds % 3600 / 60,
-//                        timerState.totalSeconds % 60)
-//                },
-//                range = 0..23
-//            )
-//
-            // 分钟选择器
-            NumberPicker(
-                value = (timerState.totalSeconds % 3600) / 60,
-                onValueChange = { minutes ->
+            // 分鐘選擇器
+            SlotMachinePicker(
+                range = 0..59,
+                initialValue = 0,
+                onNumberSelected = { minutes ->
                     viewModel.setTime(
                         timerState.totalSeconds / 3600,
                         minutes,
                         timerState.totalSeconds % 60
                     )
                 },
-                range = 0..59
+                modifier = Modifier.width(80.dp)
             )
-            
-            // 秒数选择器
-            NumberPicker(
-                value = timerState.totalSeconds % 60,
-                onValueChange = { seconds ->
+
+            Text(":", style = MaterialTheme.typography.headlineLarge)
+
+            // 秒數選擇器
+            SlotMachinePicker(
+                range = 0..59,
+                onNumberSelected = { seconds ->
                     viewModel.setTime(
                         timerState.totalSeconds / 3600,
                         (timerState.totalSeconds % 3600) / 60,
                         seconds
                     )
                 },
-                range = 0..59
+                modifier = Modifier.width(80.dp)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(32.dp))
-        
+
         Button(
-            onClick = { 
+            onClick = {
                 if (timerState.isRunning) viewModel.stopTimer()
                 else viewModel.startTimer()
             },
-            enabled = timerState.totalSeconds > 0 || timerState.isRunning
+            enabled = timerState.totalSeconds > 0 || timerState.isRunning,
+            modifier = Modifier.width(200.dp)
         ) {
-            Text(if (timerState.isRunning) "Stop" else "Start")
+            Text(if (timerState.isRunning) "停止" else "開始")
         }
     }
 }
 
-// 格式化时间的辅助函数
 private fun formatTime(totalSeconds: Int): String {
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
-//    return String.format("%02d:%02d:%02d", hours, minutes, seconds)
-    return String.format("%02d:%02d", minutes, seconds)
-}
-
-@Composable
-fun NumberPicker(
-    value: Int,
-    onValueChange: (Int) -> Unit,
-    range: IntRange
-) {
-    Row(
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(
-            onClick = { 
-                if (value > range.first) onValueChange(value - 1)
-            }
-        ) {
-            Icon(Icons.Default.Remove, "减少")
-        }
-        
-        Text(
-            text = value.toString(),
-            style = MaterialTheme.typography.headlineMedium
-        )
-        
-        IconButton(
-            onClick = { 
-                if (value < range.last) onValueChange(value + 1)
-            }
-        ) {
-            Icon(Icons.Default.Add, "增加")
-        }
+    return when {
+        hours > 0 -> String.format("%d時%02d分%02d秒", hours, minutes, seconds)
+        minutes > 0 -> String.format("%d分%02d秒", minutes, seconds)
+        else -> String.format("%d秒", seconds)
     }
 } 
