@@ -13,6 +13,7 @@ fun TimerScreen(
     viewModel: TimerViewModel = viewModel()
 ) {
     val timerState by viewModel.timerState.collectAsState()
+    var isPickerEnabled by remember { mutableStateOf(true) }
 
     Column(
         modifier = modifier
@@ -38,6 +39,7 @@ fun TimerScreen(
             SlotMachinePicker(
                 range = 0..59,
                 initialValue = 0,
+                isEnabled = isPickerEnabled,  // 控制滾輪是否可用
                 onNumberSelected = { minutes ->
                     viewModel.setTime(
                         timerState.totalSeconds / 3600,
@@ -53,6 +55,7 @@ fun TimerScreen(
             // 秒數選擇器
             SlotMachinePicker(
                 range = 0..59,
+                isEnabled = isPickerEnabled,  // 控制滾輪是否可用
                 onNumberSelected = { seconds ->
                     viewModel.setTime(
                         timerState.totalSeconds / 3600,
@@ -68,8 +71,14 @@ fun TimerScreen(
 
         Button(
             onClick = {
-                if (timerState.isRunning) viewModel.stopTimer()
-                else viewModel.startTimer()
+                if (timerState.isRunning) {
+                    viewModel.stopTimer()
+                    isPickerEnabled = true
+                }
+                else {
+                    viewModel.startTimer()
+                    isPickerEnabled = false
+                }
             },
             enabled = timerState.totalSeconds > 0 || timerState.isRunning,
             modifier = Modifier.width(200.dp)

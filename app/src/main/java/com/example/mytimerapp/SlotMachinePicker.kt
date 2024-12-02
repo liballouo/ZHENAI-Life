@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.*
 import android.util.Log
 
@@ -23,12 +24,14 @@ fun SlotMachinePicker(
     modifier: Modifier = Modifier,
     range: IntRange = 0..59,
     initialValue: Int = 0,
+    isEnabled: Boolean = true,
     onNumberSelected: (Int) -> Unit
 ) {
     val itemHeight = 40.dp
     val visibleItems = 3
     val repeatCount = 3
     val numbers = List(repeatCount) { range.toList() }.flatten()
+    val density = LocalDensity.current
 
     var alignCenter = false
     
@@ -46,10 +49,19 @@ fun SlotMachinePicker(
     // 監聽滾動狀態
     LaunchedEffect(listState) {
         snapshotFlow { 
-            listState.firstVisibleItemIndex to listState.isScrollInProgress 
-        }.collect { (index, isScrolling) ->
-            val centerIndex = index + (visibleItems / 2)
-            val currentNumber = numbers[(centerIndex-0.5).toInt() % numbers.size]
+        //     listState.firstVisibleItemIndex to listState.isScrollInProgress     
+        // }.collect { (index, isScrolling) ->
+        //     val centerIndex = index + (visibleItems / 2)
+        //     val currentNumber = numbers[(centerIndex-0.5).toInt() % numbers.size]
+            Triple(
+                listState.firstVisibleItemIndex,
+                listState.firstVisibleItemScrollOffset,
+                listState.isScrollInProgress
+            )
+        }.collect { (firstIndex, offset, isScrolling) ->
+            val itemsBeforeCenter = (visibleItems - 1) / 2
+            val offsetInItems = with(density) { offset.toFloat() / itemHeight.toPx() }
+            val centerIndex = firstIndex + itemsBeforeCenter
 
             if (isScrolling) {
                 // 取消之前的計時器
@@ -58,17 +70,37 @@ fun SlotMachinePicker(
                 if (!alignCenter) {
                     alignCenter = true
                     // 確保對齊到中心
-                    coroutineScope.launch {
-                        listState.animateScrollToItem(
-                            index = centerIndex,
-                        )
-                        Log.d("SlotMachinePicker", "centerIndex: $centerIndex")
+                    // coroutineScope.launch {
+                    //     listState.animateScrollToItem(
+                    //         index = centerIndex,
+                    //     )
+                    //     Log.d("SlotMachinePicker", "centerIndex: $centerIndex")
+                    // }
+                    val currentNumber = numbers[(centerIndex-0.5).toInt() % numbers.size]
+                    val targetIndex = if (offsetInItems > 0.5f) {
+                        centerIndex + 1
+                    } else {
+                        centerIndex
+                    }
+
+                    if (numbers[(centerIndex-0.5).toInt() % numbers.size] != lastStableNumber || selectionJob == null) {
+                        lastStableNumber = numbers[(centerIndex-0.5).toInt() % numbers.size]
+                        selectedNumber = numbers[(centerIndex-0.5).toInt() % numbers.size]
+                        
+                        // 取消之前的計時器並啟動新的
+                        selectionJob?.cancel()
+                        selectionJob = coroutineScope.launch {
+                            // delay(5000) // 等待5秒
+                            onNumberSelected(numbers[(centerIndex-0.5).toInt() % numbers.size])
+                        }
                     }
                 }
             } else {
                 // reset alignCenter
                 alignCenter = false
-                // 數字改變或停止滾動時
+                
+                val currentNumber = numbers[(centerIndex-0.5).toInt() % numbers.size]
+                // 數字改變或停止滾動
                 if (currentNumber != lastStableNumber || selectionJob == null) {
                     lastStableNumber = currentNumber
                     selectedNumber = currentNumber
@@ -114,14 +146,14 @@ fun SlotMachinePicker(
                 .height(itemHeight * visibleItems)
                 .width(80.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .background(Color.LightGray),
+                .background(if (isEnabled) Color.LightGray else Color.Gray),
             contentAlignment = Alignment.Center
         ) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = itemHeight * ((visibleItems - 1) / 2)),
-                userScrollEnabled = true
+                userScrollEnabled = isEnabled
             ) {
                 items(numbers.size) { index ->
                     val number = numbers[index % range.count()]
@@ -135,7 +167,11 @@ fun SlotMachinePicker(
                             text = String.format("%02d", number),
                             fontSize = 24.sp,
                             fontWeight = if (number == selectedNumber) FontWeight.Bold else FontWeight.Normal,
-                            color = if (number == selectedNumber) Color.Blue else Color.Black,
+                            color = if (isEnabled) {
+                                if (number == selectedNumber) Color.Blue else Color.Black
+                            } else {
+                                Color.DarkGray
+                            },
                             textAlign = TextAlign.Center
                         )
                     }
@@ -150,7 +186,7 @@ fun SlotMachinePicker(
                     .background(Color.Transparent)
                     .border(
                         width = 2.dp,
-                        color = Color.Blue,
+                        color = if (isEnabled) Color.Blue else Color.Gray,
                         shape = MaterialTheme.shapes.medium
                     )
             )
